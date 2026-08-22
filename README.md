@@ -55,6 +55,14 @@ Since classical algorithms need a fixed-length numeric vector per image rather t
 
 This README reflects the project up to the HSV color histogram feature — the first entry in the engineered feature set. Additional features (HOG, LBP, and others from the candidate list above), baseline model training (Random Forest, Logistic Regression, Naive Bayes), and evaluation are not yet implemented, and CNN work is intentionally deferred until the classical pipeline is complete and understood.
 
+
+**Implemented so far:**
+
+- **HSV color histogram** (16 bins per channel, 48 features total). HSV was chosen over RGB to avoid encoding the same color information twice — the two are a deterministic transform of each other, so extracting both would be redundant rather than additive, and actively harmful for Logistic Regression, which is sensitive to correlated inputs. Separating hue from brightness/saturation also makes the feature more robust to the inconsistent lighting/exposure across street-view captures than raw RGB would be.
+
+- **Vegetation index (VARI)**. True NDVI requires a near-infrared channel, which street-view RGB photos don't have, so VARI (`(G-R)/(G+R-B)`) is used as the standard visible-band proxy from the precision-agriculture literature. Using a ratio rather than raw channel values makes the signal resistant to illumination differences across images — the same design goal as the HSV choice above, solved the same way (relative/normalized values instead of raw magnitudes). Three summary statistics are taken from the resulting per-pixel score: mean (overall vegetation amount), standard deviation (how uniformly vegetated the frame is), and the fraction of pixels above a threshold (vegetation coverage extent). This feature is included with the expectation that it will only meaningfully separate climate extremes (desert nations, dense city-states, tropical nations) rather than most of the 111-class set — its actual contribution will be checked against Random Forest feature importances once a baseline model exists, rather than assumed.
+
+  
 ## Tech stack
 
 | Tool | Purpose |
