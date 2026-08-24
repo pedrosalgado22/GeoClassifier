@@ -10,9 +10,12 @@ def vegetation_features(image_path, threshold=0.1):
 
     return [vari.mean(), vari.std(), (vari > threshold).mean()]
 
-
 def color_histogram(image_path, bins=16):
     img = cv2.imread(str(image_path))
+
+    if img is None:
+        raise ValueError(f"Could not read image: {image_path}")
+
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     features = []
@@ -22,16 +25,6 @@ def color_histogram(image_path, bins=16):
         features.extend(hist)
 
     return features
-
-
-def vegetation_features(image_path, threshold=0.1):
-    img = cv2.imread(str(image_path)).astype(np.float32)
-    b, g, r = img[:, :, 0], img[:, :, 1], img[:, :, 2]
-
-    vari = (g - r) / (g + r - b + 1e-6)
-
-    return [vari.mean(), vari.std(), (vari > threshold).mean()]
-
 
 
 
