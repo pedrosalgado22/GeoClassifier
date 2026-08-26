@@ -5,20 +5,18 @@ from skimage.feature import local_binary_pattern
 
 def color_histogram(image_path, bins=16):
     img = cv2.imread(str(image_path))
-
     if img is None:
         raise ValueError(f"Could not read image: {image_path}")
-
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     features = []
     for channel in range(3):
-        hist = cv2.calcHist([hsv], [channel], None, [bins], [0, 256])
+        max_val = 180 if channel == 0 else 256
+        hist = cv2.calcHist([hsv], [channel], None, [bins], [0, max_val])
         hist = hist.flatten() / hist.sum()
         features.extend(hist)
 
     return features
-
 
 
 def vegetation_features(image_path, threshold=0.1):
