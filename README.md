@@ -22,7 +22,7 @@ Midway through feature engineering, the scope of that ambition was explicitly re
 
 # Repository
 
-
+```
 GeoClassifier/
 ├── imageconverter.py       # Feature extraction functions (HSV, VARI, sky, HOG, LBP, ground, edges, etc.)
 ├── imageconverter.ipynb    # Notebook that runs feature extraction across the dataset, outputs train/test CSVs
@@ -35,6 +35,8 @@ GeoClassifier/
 ├── LICENSE
 ├── .gitignore
 └── __pycache__/            # compiled bytecode, gitignored
+```
+
 
 ## Dataset
 
