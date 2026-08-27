@@ -18,6 +18,23 @@ Classical algorithms expect `X` as a 2D numeric table, not a raw image grid — 
 
 Midway through feature engineering, the scope of that ambition was explicitly reined in: a planned Hough-transform line-orientation feature was fully scoped (weighted angle histogram + line-density count) but deliberately dropped once it became clear that continuing to add ever more elaborate hand-built descriptors was drifting past the actual learning goal — understanding how an image becomes a number — rather than serving it. Feature engineering was closed out shortly after with three simple, low-cost additions instead.
 
+
+
+# Repository
+
+GeoClassifier/
+├── imageconverter.py       # Feature extraction functions (HSV, VARI, sky, HOG, LBP, ground, edges, etc.)
+├── imageconverter.ipynb    # Notebook that runs feature extraction across the dataset, outputs train/test CSVs
+├── transformers.py         # HSV/HOG/etc. extractor functions, imported by imageconverter.ipynb
+├── clasifier.ipynb         # Cleaning, feature selection, scaling, modeling, tuning, ensembling, evaluation
+├── clasifier.html          # Static export of clasifier.ipynb (prints only, not source of truth)
+├── test_set.csv            # Extracted/processed test features
+├── train_set.csv           # Extracted/processed train features (gitignored, not tracked)
+├── README.md
+├── LICENSE
+├── .gitignore
+└── __pycache__/            # compiled bytecode, gitignored
+
 ## Dataset
 
 **Source:** [sylshaw/streetview-by-country](https://www.kaggle.com/datasets/sylshaw/streetview-by-country/data) (Kaggle)
