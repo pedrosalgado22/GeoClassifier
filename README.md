@@ -12,7 +12,6 @@ This project attempts to create a Machine Learning model that predicts where a p
 </p>
 
 ---
----
 
 
 
