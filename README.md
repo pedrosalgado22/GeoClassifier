@@ -1,22 +1,24 @@
-# GeoClassifier
+# Geographical Classifier
 
-A machine learning project that predicts a country from a single street-view-style photo — the core mechanic of [GeoGuessr](https://www.geoguessr.com/), rebuilt as a supervised image classification problem.
+This project attempts to create a Machine Learning model that predicts where a photo was taken, at different levels of measurement: country accuracy, continent accuracy, and kilometer distance by predicting the latitude/longitude.
 
-## Motivation
 
-I play GeoGuessr. One of the goals of this project, beyond the learning exercise itself, is to eventually have a model that can go head-to-head with me — given one frame, guess the country, and see who's more consistent.
+---
 
-## Goal
+<img width="456" height="421" alt="image-71_png" src="https://github.com/user-attachments/assets/ad5c9347-c019-4670-be5b-f3e72bb36c81" />
 
-Given a single street-view image, predict the country it was taken in (and, as a coarser fallback target, the continent). The project was built incrementally, deliberately prioritizing understanding over shortcuts to a high-accuracy model.
 
-## Learning Philosophy
+---
 
-This was my first project working with image data rather than tabular data, and my first time approaching neural networks in any depth. Rather than jumping straight to a CNN — which would work, but as a black box I didn't yet have the intuition to reason about — the project deliberately followed the progression laid out in Aurélien Géron's *Hands-On Machine Learning* ([ageron/handson-ml3](https://github.com/ageron/handson-ml3)): build fluency with classical supervised learning (Logistic Regression, Decision Tree, Random Forest, KNN, Naive Bayes) first, on data structured the way Géron's tabular chapters do (`X`/`y`), before ever touching a neural network architecture.
 
-Classical algorithms expect `X` as a 2D numeric table, not a raw image grid — so the entire first phase of this project was about deriving a meaningful, fixed-length numeric feature vector per image (hand-engineered features) rather than feeding raw pixels in. This mirrors the pre-deep-learning approach to this exact problem: the [IM2GPS project](https://graphics.cs.cmu.edu/projects/im2gps/) (Hays & Efros, 2008) tackled photo geolocation using engineered descriptors — color histograms, texture, scene layout — before CNN-based approaches became standard. This project is, in effect, a scaled-down rebuild of that baseline, as a stepping stone toward CNNs once the fundamentals were solid.
 
-Midway through feature engineering, the scope of that ambition was explicitly reined in: a planned Hough-transform line-orientation feature was fully scoped (weighted angle histogram + line-density count) but deliberately dropped once it became clear that continuing to add ever more elaborate hand-built descriptors was drifting past the actual learning goal — understanding how an image becomes a number — rather than serving it. Feature engineering was closed out shortly after with three simple, low-cost additions instead.
+## Methodology
+
+Instead of using NNs to learn and predict the target based on the images directly, as common image prediction models do, this project uses a much less efficient, accurate, and useful methodology: extracting tabular data from the images using different functions to derive values for different image characteristics, such as HSV, green color (VARI), sky proportion, HOG, LBP, ground color, brightness/contrast, and edge density, and then making the predictions. This method was chosen for several reasons: first, NNs are black boxes that make it harder to understand everything that is going on, which components matter more, and what the model is taking into account. Second, I wanted to experiment with how efficient a model could be using tabular data to make geographical predictions, and how much worse it would be compared to the multiple existing ML/NN models that already make them at a very high level.
+
+Classical algorithms expect `X` to be a 2D numeric table, not a raw image grid, so the entire first phase of this project was about deriving a meaningful, fixed-length numeric feature vector per image (hand-engineered features) rather than feeding in raw pixels. This approach mirrors and is inspired by the pre-deep-learning approach to this exact problem: the [IM2GPS project](https://graphics.cs.cmu.edu/projects/im2gps/) (Hays & Efros, 2008) tackled photo geolocation using engineered descriptors, such as color histograms, textures, and scene layouts, before CNN-based approaches became standard.
+
+This methodology also has its limitations: the obvious one is that, although transforming images into numeric matrices might be a fun idea, I have no expertise in image processing, whatever characteristics can be extracted from images or constitute them. That limitation served as a learning phase for understanding photography, which is always a valuable skill for a data worker, especially when working with and evaluating image datasets.
 
 
 
@@ -24,17 +26,16 @@ Midway through feature engineering, the scope of that ambition was explicitly re
 
 ```
 GeoClassifier/
-├── imageconverter.py       # Feature extraction functions (HSV, VARI, sky, HOG, LBP, ground, edges, etc.)
+├── imageconverter.py       # imageconverter.ipynb as a single script
 ├── imageconverter.ipynb    # Notebook that runs feature extraction across the dataset, outputs train/test CSVs
-├── transformers.py         # HSV/HOG/etc. extractor functions, imported by imageconverter.ipynb
+├── transformers.py         # Feature extraction functions imported by imageconverter.ipynb
 ├── clasifier.ipynb         # Cleaning, feature selection, scaling, modeling, tuning, ensembling, evaluation
-├── clasifier.html          # Static export of clasifier.ipynb (prints only, not source of truth)
 ├── test_set.csv            # Extracted/processed test features
-├── train_set.csv           # Extracted/processed train features (gitignored, not tracked)
+├── train_set.csv           # Extracted/processed train features (gitignored)
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-└── __pycache__/            # compiled bytecode, gitignored
+└── __pycache__/       
 ```
 
 
@@ -42,18 +43,9 @@ GeoClassifier/
 
 **Source:** [sylshaw/streetview-by-country](https://www.kaggle.com/datasets/sylshaw/streetview-by-country/data) (Kaggle)
 
-- ~107,000 images, 640×640 px, across 111 countries/regions, per-country file counts ranging from 110 (Bermuda) to 1,005 (Vietnam) — a near-uniform class distribution by design, unlike the alternatives below.
+- ~107,000 images, 640×640 px, across more than a hundred countries/regions, with per-country file counts being near-uniform around 1,000 images, from the largest country in the world, Russia, to small territories such as Jersey or Christmas Island. Almost all territories present have 800–1,400 images regardless of real-life characteristics, with some countries having fewer (but all having at least 100+).
 - Organized as `streetview_images/<ISO_ALPHA-2_CODE>/<filename>.jpg`.
-- Filenames encode the exact capture coordinates and camera heading, e.g. `42d436079_1d473612_h213.jpg` → latitude `42.436079`, longitude `1.473612`, heading `213°`. An `n` prefix denotes a negative latitude/longitude (e.g. `n34d792510` = `-34.792510`, confirmed against real Namibia/Uruguay filenames); `d` stands in for the decimal point. Heading can also be negative (e.g. `h-75`), which an early regex-based parser initially missed (it only matched `\d+` with no sign), causing 49 filenames to fail parsing before the fix.
-
-### Dataset selection history
-
-Two other datasets were evaluated and abandoned before settling on the above:
-
-1. **[ubitquitin/geolocation-geoguessr-images-50k](https://www.kaggle.com/datasets/ubitquitin/geolocation-geoguessr-images-50k)** — the dataset used in [crypticsy's "Geo Guesser" notebook](https://www.kaggle.com/code/crypticsy/geo-guesser) by Animesh Singh Basnet, which this project's original metadata-extraction pattern (folder-iteration, `pd.DataFrame` construction, per-country distribution heatmap) was directly adapted from. Abandoned due to severe class imbalance (the US alone accounted for ~12,000 images, while dozens of countries had single-digit counts), which would bias any classifier toward a handful of over-represented countries.
-2. **[paulchambaz/google-street-view](https://www.kaggle.com/datasets/paulchambaz/google-street-view)** (10k images) — abandoned because the accompanying coordinates file had no header and no reliable, confirmed key linking rows to specific image files.
-
-A general note on Street View scraping legality was raised during dataset research: Google's own Maps Platform terms explicitly prohibit using Street View content for model training and generally disallow pre-fetching/storing imagery outside place/panorama IDs. The Kaggle datasets used here exist in a legal gray zone from prior scraping, common in this research area, and this project is treated as personal/educational, not commercial.
+- Filenames encode the exact capture coordinates and camera heading, e.g. `42d436079_1d473612_h213.jpg` is latitude `42.436079`, longitude `1.473612`, heading `213°`. An `n` prefix denotes a negative latitude/longitude (e.g. `n34d792510` = `-34.792510`); `d` stands in for the decimal point. Heading can also be negative (e.g. `h-75`).
 
 ## Data Pipeline
 
