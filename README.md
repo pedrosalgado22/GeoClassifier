@@ -2,10 +2,16 @@
 
 This project attempts to create a Machine Learning model that predicts where a photo was taken, at different levels of measurement: country accuracy, continent accuracy, and kilometer distance by predicting the latitude/longitude.
 
+<p align="center">
+  <img
+    width="456"
+    height="421"
+    alt="image-71_png"
+    src="https://github.com/user-attachments/assets/ad5c9347-c019-4670-be5b-f3e72bb36c81"
+  />
+</p>
 
-<img width="456" height="421" alt="image-71_png" src="https://github.com/user-attachments/assets/ad5c9347-c019-4670-be5b-f3e72bb36c81" />
-
-
+---
 ---
 
 
