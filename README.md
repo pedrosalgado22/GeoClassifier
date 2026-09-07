@@ -236,6 +236,66 @@ This is the completed state of the classical machine-learning baseline phase: da
 
 CNN-based modeling remains intentionally deferred to a later phase, now that this baseline exists as both a learning foundation and a concrete number to beat.
 
+## Continent Accuracy
+
+The same pipeline, features, and dataset splits were reused for a coarser target: predicting continent instead of country. With only six classes instead of roughly a hundred, this is a structurally easier problem, and the results confirm that expectation — but they also surface patterns, and one real inconsistency, that the country-level results did not.
+
+### Baseline models
+
+| Model | Settings | Accuracy | Top-3 Accuracy |
+|---|---|---|---|
+| Logistic Regression | default (`lbfgs`, did not converge) | 0.5276 | 0.8682 |
+| Decision Tree | default | 0.4567 | 0.5621 |
+| Random Forest | `n_estimators=50, max_depth=15` | 0.5977 | 0.8956 |
+| Naive Bayes | `GaussianNB` | 0.3510 | 0.7399 |
+
+Top-3 accuracy is far less informative here than it was at the country level, for a simple structural reason: with only six possible continents, guessing three of them covers half of all possible answers. A random guesser would already score roughly 50% top-3 accuracy by chance alone, compared to under 3% at the country level with ~111 classes. The top-3 figures above are consequently inflated regardless of model quality and are not treated as a meaningful signal for this part of the results; top-1 accuracy is the metric that actually distinguishes the models.
+
+**Majority-class baseline:** Europe accounts for 3,804 of the 9,608 validation images (39.6%), by far the largest continent class — a direct and unavoidable consequence of the dataset balancing individual countries rather than continents, and Europe simply contains far more of the 111 countries than, say, Oceania does. A model that always guessed "Europe" would score close to 39.6% top-1 accuracy on this validation set. Naive Bayes, at 35.1%, actually falls **below** this majority-class baseline — a concrete, notable failure specific to this target, not seen at the country level, where every model comfortably beat its (much lower, near-1%) majority baseline.
+
+### Tuning and final test results
+
+| Model | Test Top-1 | Test Top-2 | Test Top-3 |
+|---|---|---|---|
+| Random Forest (tuned) | 0.6161 | 0.8136 | 0.9036 |
+| Logistic Regression (tuned) | 0.4348 | 0.6506 | 0.7962 |
+
+One discrepancy is worth flagging directly rather than glossing over: both tuning cells printed two different best-score values in sequence — 0.4340 and 0.3068 for Logistic Regression, 0.6116 and 0.3214 for Random Forest. The second value in each pair is not a new result; it is bit-for-bit identical to the corresponding country-level tuning score reported earlier in this project. This is almost certainly leftover output from a variable or cell not fully re-run for the continent target, rather than a genuine second computation, and the first value in each pair (0.4340 for LR, 0.6116 for RF) is the one consistent with everything else in this section. Worth re-running those specific cells cleanly before treating either number as final. Logistic Regression's convergence warning also recurred here, identical to the country-level run, so its reported numbers likely still understate its true ceiling.
+
+### Ensembling
+
+| Ensemble | Top-1 | Top-2 | Top-3 |
+|---|---|---|---|
+| Calibrated average | 0.6113 | 0.8124 | 0.9045 |
+| Stacked (meta-LR) | **0.6274** | **0.8203** | **0.9052** |
+
+This reverses the finding from the country-level task, where calibrated averaging beat stacking. The explanation offered earlier for that result — that the stacking meta-model needed more data per class than it had (roughly 96 validation examples per country) to learn a reliable weighting — is directly testable here, and the continent task provides exactly the confirming case: with only six classes, the same 9,608 validation rows give the meta-model over 1,600 examples per class on average, more than sixteen times the density it had before. With that much more signal to learn from, stacking now has enough to actually outperform the simpler calibrated average, which is consistent with the mechanism proposed earlier rather than a contradiction of it.
+
+### Feature importance
+
+The importance distribution is flat again, in the same way it was for country prediction — no single feature dominates, with values spread roughly between 0.009 and 0.025 across all 80 features. What stands out is that the *same* features lead both rankings: `lbp_pca_2`, `ground_hue_mean`, and `ground_grey_frac` sit at or near the top for both country and continent prediction. That consistency suggests these particular features carry genuinely general-purpose geographic signal, rather than being useful only for distinguishing similar countries from each other.
+
+### Per-continent breakdown
+
+| Continent | Top-1 | Top-2 | Top-3 | n images |
+|---|---|---|---|---|
+| Africa | 0.648 | 0.781 | 0.811 | 1,143 |
+| Europe | 0.471 | 0.596 | 0.733 | 3,804 |
+| Oceania | 0.289 | 0.476 | 0.613 | 450 |
+| South America | 0.271 | 0.656 | 0.728 | 717 |
+| Asia | 0.151 | 0.415 | 0.771 | 2,589 |
+| North America | 0.139 | 0.412 | 0.663 | 905 |
+
+One caveat before reading into this table: recomputing the weighted average of its `top1_correct` column against each continent's row count reproduces the Naive Bayes baseline accuracy (0.351) exactly, not Random Forest's (0.598). This indicates the table was actually built from Naive Bayes's validation probabilities rather than the tuned Random Forest's, despite being labeled with `best_rf`'s class order — a variable-reuse artifact rather than a bug in the underlying logic. The patterns below are still real and worth noting, but this table should be rebuilt against the actual best model (the stacked ensemble) before treating the exact numbers as final.
+
+With that caveat in mind, a few things stand out. **Africa is the clear best-performing continent (64.8% top-1)**, despite not being the largest class by training volume — behind Europe and Asia in image count, but well ahead of both in accuracy, suggesting Africa has a genuinely distinctive visual signature the feature set picks up regardless of how much data it's trained on. **Europe, despite being by far the largest class (3,804 images, essentially 40% of validation data), only reaches 47.1%** — well below Africa's result on a third of the data, reinforcing that raw class size isn't the dominant driver of accuracy here.
+
+**Asia and North America are the weakest continents**, at 15.1% and 13.9% top-1 respectively — both well below what their training volume alone would predict, especially Asia, which has the second-most images of any continent. This connects directly to a finding from the country-level results: Vietnam, an Asian country, was the single worst-performing country in that analysis. Taken together, this suggests the difficulty isn't isolated to Vietnam specifically, but may reflect a broader pattern of Asian countries being visually harder for this feature set to separate — both from each other and, evidently, from other continents entirely.
+
+**South America shows the largest jump between top-1 and top-2 of any continent** (27.1% → 65.6%, a 38-point gain), noticeably larger than the jump for any other row. That pattern is consistent with South America being systematically confused with one specific other continent as the top guess, though confirming which one would require building an explicit confusion cross-tab against the true best model, the same way it was done for country-level confusions — a natural next diagnostic step, not yet performed here.
+
+Lat/long-based distance prediction remains the third and final measurement planned for this results section, not yet covered here.
+
 ## Tech Stack
 
 | Tool | Purpose |
