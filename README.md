@@ -295,7 +295,7 @@ With that caveat in mind, a few things stand out. **Africa is the clear best-per
 **South America shows the largest jump between top-1 and top-2 of any continent** (27.1% → 65.6%, a 38-point gain), noticeably larger than the jump for any other row. That pattern is consistent with South America being systematically confused with one specific other continent as the top guess, though confirming which one would require building an explicit confusion cross-tab against the true best model, the same way it was done for country-level confusions — a natural next diagnostic step, not yet performed here.
 
 Lat/long-based distance prediction remains the third and final measurement planned for this results section, not yet covered here.
-
+There's a real, literature-grounded reason direct lat/lon regression is not actually what most serious geolocation-from-image research does — including the IM2GPS lineage this whole project has been following. Google's PlaNet (the well-known successor work in this space) explicitly treats geolocation as classification over discretized geographic cells, not direct coordinate regression, for a specific structural reason: a photo of, say, generic tropical vegetation could plausibly come from several disconnected regions of the globe with similar climate. A regression model, forced to output one point, tends to average toward between those plausible locations — which is wrong for all of them — whereas a classifier choosing among discrete cells doesn't have that averaging failure mode; it can commit to one plausible cell without being dragged toward a geographic midpoint that matches nothing.
 ## Tech Stack
 
 | Tool | Purpose |
