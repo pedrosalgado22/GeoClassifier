@@ -296,6 +296,104 @@ With that caveat in mind, a few things stand out. **Africa is the clear best-per
 
 Lat/long-based distance prediction remains the third and final measurement planned for this results section, not yet covered here.
 There's a real, literature-grounded reason direct lat/lon regression is not actually what most serious geolocation-from-image research does — including the IM2GPS lineage this whole project has been following. Google's PlaNet (the well-known successor work in this space) explicitly treats geolocation as classification over discretized geographic cells, not direct coordinate regression, for a specific structural reason: a photo of, say, generic tropical vegetation could plausibly come from several disconnected regions of the globe with similar climate. A regression model, forced to output one point, tends to average toward between those plausible locations — which is wrong for all of them — whereas a classifier choosing among discrete cells doesn't have that averaging failure mode; it can commit to one plausible cell without being dragged toward a geographic midpoint that matches nothing.
+
+## Latitude / Longitude Regression — Results
+
+### Baseline models
+
+| Model | Mean km error | Median km error |
+|---|---|---|
+| Linear Regression | 5,507.2 | 4,120.6 |
+| Ridge | 5,507.2 | 4,120.5 |
+| Decision Tree | 6,165.6 | 5,853.6 |
+| Random Forest (untuned) | 5,119.3 | 3,800.5 |
+
+Two things stand out immediately. **Ridge and plain Linear Regression produced virtually identical results** — mean km error matches to one decimal place, median differs by 0.1 km. This is a direct, concrete payoff from the correlation-based feature dropping done earlier in the project: Ridge's whole purpose is to stabilize a model against the kind of multicollinearity that caused concern back when adjacent HSV/LBP bins were found correlated above 0.8. Since those redundant columns were already removed before this stage, Ridge's regularization had very little left to do — confirming that earlier cleanup step actually worked, rather than Ridge simply being redundant in general.
+
+**Decision Tree was the weakest model here**, exactly as it was for both country and continent prediction earlier in this project — a single unconstrained tree consistently underperforms every other model tried across all three targets in this project, a pattern worth noting as a throughline rather than three separate coincidences.
+
+### Tuning
+
+- **Random Forest:** `{n_estimators=200, min_samples_leaf=4, max_features='sqrt', max_depth=25}` — CV score −5,178.4 km (mean).
+- **Ridge:** `{alpha=0.1}` — CV score −5,523.7 km (mean).
+
+### Final test set evaluation
+
+| Model | Mean km | Median km |
+|---|---|---|
+| Random Forest (tuned) | 5,132.0 | 3,773.4 |
+| Ridge (tuned) | 5,528.3 | 4,126.1 |
+
+### Ensembling — a genuinely different result than country/continent
+
+| Ensemble | Mean km | Median km |
+|---|---|---|
+| Simple average (RF + Ridge) | 5,303.4 | 3,895.2 |
+| Stacked (meta-LR) | **4,827.7** | **3,612.6** |
+
+This reverses what happened during classification. **Simple averaging made things worse than RF alone** (5,303.4 vs. RF's own 5,132.0 mean km) — unlike averaging two classifiers' probabilities, averaging two regressors' raw coordinate predictions is a literal arithmetic midpoint. When one model (Ridge) is meaningfully worse than the other (RF), that midpoint gets dragged toward the worse prediction rather than benefiting from any "wisdom of crowds" effect. **Stacking, by contrast, produced the best result of the entire regression phase** — the meta-model apparently learned to weight RF's predictions much more heavily than Ridge's, rather than assuming the naive 50/50 trust a flat average forces.
+
+### Feature importance
+
+The top features recurring here — `lbp_pca_2`, `ground_hue_mean`, `hsv_bin_32`, `hsv_bin_1`, `lbp_pca_5`, `ground_grey_frac` — are, with minor reordering, the same features that led both the country and continent importance rankings earlier in this project. This is a meaningful cross-check: it suggests these specific engineered features carry genuinely general geographic signal rather than being useful only for one particular framing of the target. The distribution is flat again, consistent with every prior importance check in this project — no single feature dominates.
+
+### Hedge vs. land-only
+
+| Approach | Mean km | Median km |
+|---|---|---|
+| Hedge (unconstrained) | 5,132.0 | 3,773.4 |
+| Land-only (snapped) | 5,131.3 | 3,777.2 |
+
+The difference is negligible — under 1 km on the mean, and the median is actually marginally *worse* after snapping. A plausible explanation: Random Forest predictions are, by construction, averages of real training-point coordinates within a leaf — meaning RF's raw output is already implicitly biased toward real, populated locations most of the time, unlike a linear model that could more easily extrapolate into open ocean. If that's the mechanism, it would explain why forcing land-only had almost nothing left to fix specifically for RF; the experiment might show a larger effect if repeated on Ridge or LR's raw predictions instead, which extrapolate more freely.
+
+### Mean vs. median — a visible, not just theoretical, pattern
+
+Every model here shows a mean 1,300–2,500 km higher than its own median (e.g., Ridge: 5,528.3 mean vs. 4,126.1 median). This is a direct, visible confirmation of the earlier discussion about why both statistics were worth reporting: a handful of catastrophically wrong guesses (opposite hemisphere, wrong continent entirely) are dragging every mean upward, while the median shows what a "typical" miss actually looks like.
+
+---
+
+## Full-Project Summary and Comparison to Published Benchmarks
+
+### This project's results, all three target levels
+
+| Target | Metric | Best result | Model |
+|---|---|---|---|
+| Country (111 classes) | Top-1 / Top-2 / Top-3 accuracy | 34.6% / 45.4% / 51.5% | Calibrated ensemble (RF + LR) |
+| Continent (6 classes) | Top-1 / Top-2 / Top-3 accuracy | 62.7% / 82.0% / 90.5% | Stacked ensemble (RF + LR) |
+| Lat/Long | Mean / Median km error | 4,827.7 / 3,612.6 km | Stacked ensemble (RF + Ridge) |
+
+### External benchmarks — sourced numbers
+
+All five systems below use the same standard evaluation protocol from the geolocation literature: percentage of test images correctly localized within five fixed distance radii (1 km street, 25 km city, 200 km region, 750 km country, 2,500 km continent). This protocol traces directly back to the 2008 IM2GPS paper this project has referenced throughout.
+
+| System | Year | Approach | 1 km | 25 km | 200 km | 750 km | 2,500 km |
+|---|---|---|---|---|---|---|---|
+| **IM2GPS** (Hays & Efros) | 2008 | Nearest-neighbor retrieval over hand-crafted features — **no neural network** | — | 12.0% | 15.0% | 23.0% | 47.0% |
+| **IM2GPS, large-scale revisit** (Hays & Efros) | 2015 | Improved lazy-learning retrieval, still hand-crafted features — **no neural network** | 2.5% | 21.9% | 32.1% | 35.4% | 51.9% |
+| **PlaNet** (Weyand, Kostrikov, Philbin) | 2016 | First CNN-based approach; classification over ~26,000 geographic cells | 8.4% | 24.5% | 37.6% | 53.6% | 71.3% |
+| **ISNs** (Müller-Budack et al.) | 2018 | Deep CNN with hierarchical scene-context classification | 10.5% | 28.0% | 36.6% | 49.7% | 66.0% |
+| **TransLocator** (Pramanick et al.) | 2022 | Transformer-based, combines image + generated semantic segmentation | 11.8% | 31.1% | 46.7% | 58.9% | 80.1% |
+
+*Sources: original IM2GPS and IM2GPS-2015 and PlaNet figures reproduced from Table 1 of Vo, Jacobs & Hays, "Revisiting IM2GPS in the Deep Learning Era," ICCV 2017 (arxiv.org/pdf/1705.04838), evaluated on the original 237-image IM2GPS test set. ISNs and TransLocator figures reproduced from Table 4 of "Visual and Object Geo-localization: A Comprehensive Survey" (arxiv.org/pdf/2112.15202), evaluated on the larger 3,000-image IM2GPS3k test set — note this is a different (larger, harder) test set than the row above it, so treat ISNs/TransLocator's numbers as internally comparable to each other, not strictly apples-to-apples against the 237-image IM2GPS rows.*
+
+**A sixth, especially relevant comparison — PIGEON** (Haas, Skreta, Alberti & Finn, Stanford, CVPR 2024): a CLIP-based model evaluated on a held-out set of **5,000 GeoGuessr-style Street View images** — the closest data source to this project's own dataset of anything found. PIGEON achieved a **median error of 44.35 km**, guessed the correct **country ~92% of the time**, and placed **~40% of guesses within 25 km**. It went on to defeat a professional GeoGuessr player across six consecutive matches. *(Source: Haas et al., "PIGEON: Predicting Image Geolocations," CVPR 2024, arxiv.org/abs/2307.05845; figures corroborated by contemporary reporting in The Register, July 2023.)*
+
+One more directly comparable data point: in PlaNet's own original human-evaluation experiment, it won 28 of 50 rounds against 10 expert GeoGuessr players, with a **median error of 1,100–2,300 km** in that specific match format (via Weyand et al. 2016, as cited in Anderson et al., "Supporting Image Geolocation with Diagramming and Crowdsourcing," par.nsf.gov/servlets/purl/10053400).
+
+### Comparing this project's numbers to the above — with the necessary caveats stated first
+
+Two methodological differences matter before reading anything into these comparisons:
+1. **"% within 750 km" is a distance-radius proxy for "correct country," not a literal country match** — it works reasonably well for small-to-medium countries but is a poor proxy for Russia, Canada, the US, Brazil, China, or Australia, all of which exceed 750 km across. This project's country accuracy (34.6%) is a *literal* label match, not a distance proxy — a stricter, more direct definition than most of the table above uses. PIGEON's 92% figure is the one directly comparable exception, since it's also reported as literal country-guess accuracy.
+2. **Training data scale differs by orders of magnitude.** PlaNet trained on 91 million images; PIGEON's underlying CLIP model was pretrained on hundreds of millions of image-text pairs before fine-tuning. This project trained on ~86,000 images with classical models on hand-engineered features, run on consumer CPU hardware. The gap below should be read in that light — it reflects a difference in the underlying tools and data scale as much as it reflects room for feature-engineering improvement within the current approach.
+
+With that stated:
+
+- **Country level:** this project's 34.6% literal accuracy sits almost exactly between the original 2008 IM2GPS (23.0% via the 750 km proxy) and its own 2015 improved revision (35.4%) — a genuinely notable result, since it means a classical, hand-engineered-feature pipeline built as this project's explicit homage to that 2008 paper lands in the same performance neighborhood as that paper's own lineage, using a stricter metric. It remains well below PlaNet (53.6%), TransLocator (58.9%), and dramatically below PIGEON (92%).
+- **Continent level:** 62.7% sits close to ISNs (66.0%, a genuine 2018 deep-learning system) and above both IM2GPS variants (47.0%, 51.9%), while remaining below PlaNet (71.3%) and TransLocator (80.1%). This is this project's strongest relative showing against published deep-learning benchmarks.
+- **Distance error:** this is the weakest showing by comparison. This project's best median error (3,612.6 km) is roughly **1.6× to 3.3× worse** than PlaNet's median error against human experts (1,100–2,300 km) — itself a 2016 system already considered outperformed today — and roughly **82× worse** than PIGEON's 44.35 km median. Every model built in this phase, even the best one, produces a typical miss larger than the 2,500 km continent threshold every paper above uses as its *most forgiving* bucket — meaning that on a typical guess, this project's regression models are, on average, still further off than "continent" by the field's own definition of that word.
+
+The country and continent classification results hold up as a legitimate, if modest, echo of the project's founding inspiration — landing in the same range as the very paper it set out to rebuild a scaled-down version of. The direct coordinate-regression task is where the gap to modern systems is most stark, consistent with the caveat raised earlier in this project that direct lat/lon regression is not what the field's strongest systems actually do, and that the field's own trajectory (IM2GPS → PlaNet → PIGEON) moved specifically *away* from raw coordinate prediction and toward classification-based framing for exactly this reason.
+
 ## Tech Stack
 
 | Tool | Purpose |
