@@ -298,7 +298,10 @@ Top-3 is meaningless here (random guessing already gets ~50%). **Majority baseli
 
 
 
+
 <img width="577" height="459" alt="covv" src="https://github.com/user-attachments/assets/04cfea95-a4a7-4511-ad6d-2ec82ef513ae" />
+
+R²: 0.3723998548895168
 
 
 
