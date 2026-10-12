@@ -173,17 +173,32 @@ A majority-class baseline (guessing the single most frequent country) for judgin
 - **Top-3: ≈ 2.8–4%**
 
 
+<img width="576" height="455" alt="outpute" src="https://github.com/user-attachments/assets/c5041bb9-9da4-4f4b-b7c7-cc257561d1e7" />
+
+
 Against the random baseline, the calibrated ensemble's 34.6% top-1 / 51.5% top-3 represents roughly a **30–40× improvement over random/majority-class guessing** which is strong evidence that the hand-engineered features carry real geographic signal.
+
+
+
+
+<img width="630" height="470" alt="outputw" src="https://github.com/user-attachments/assets/22dc1f58-1dbd-4287-8350-77bbd8bd3dfc" />
+
+
+
+
 
 ## Qualitative Observations
 
 Comparing the per-country accuracy table with the images shows that **countries whose images look alike internally score higher.**
 
 - **São Tomé:** images share a blur throughout the island.
-- **Oman:** a white car appears in a subset of images with similar landscapes and skies traditional of the non-urban middle east.
+- **Andorra:** similar images of the car surrounded by the traditional mountains and skies of the Pyrenees.
 - **Tunisia:** similar scenes (clear sky, similar road type) with little cover usually only in main highways which promotes similarity.
 
-This hypothesis also seems to confirm for the worst performing countries like Russia or the USA, massive countries with innumerous different biomes inside them and a very high coverage rate with a lot of different cars for different seasons and years, making pattern recognition for such a basic model extremely hard. Vietnam was the worst country however, which is curious since both the dataset photos and the general Vietnam appearance have less variance than some of the countries here.
+This hypothesis also seems to confirm for the worst performing countries like Russia or Poland, massive countries with in-numerous different biomes inside them and a very high coverage rate with a lot of different cars for different seasons and years, making pattern recognition for such a basic model extremely hard.
+
+<img width="790" height="790" alt="output" src="https://github.com/user-attachments/assets/94d8dcae-ca8d-4e38-ae7c-66819131b62a" />
+
 
 
 ## Extra Targets: Continent and Lat/Long
@@ -207,6 +222,7 @@ Top-3 is meaningless here (random guessing already gets ~50%). **Majority baseli
 - **Top features** (`lbp_pca_2`, `ground_hue_mean`, `ground_grey_frac`), matching the country ranking.
 - **Per-continent top-1:** Africa 0.65, Europe 0.47, Oceania 0.29, South America 0.27, Asia 0.15, North America 0.14. South America jumps from 0.27 to 0.66 at top-2, showing its similarity to Asia in landscapes and nature settings.
 
+<img width="595" height="500" alt="output1" src="https://github.com/user-attachments/assets/21e8c2e4-22df-4014-ae06-7ada3f9e9836" />
 
 ### Lat/Long
 
@@ -236,6 +252,10 @@ Top-3 is meaningless here (random guessing already gets ~50%). **Majority baseli
 | Continent (6 classes) | Top-1 / Top-2 / Top-3 accuracy | 62.7% / 82.0% / 90.5% | Stacked ensemble (RF + LR) |
 | Lat/Long | Mean / Median km error | 4,827.7 / 3,612.6 km | Stacked ensemble (RF + Ridge) |
 
+
+<img width="826" height="605" alt="outputzx" src="https://github.com/user-attachments/assets/033cc218-23e3-45b0-b809-cf464e8206bf" />
+
+
 ### External benchmarks
 
 | System | Year | Approach | 1 km | 25 km | 200 km | 750 km | 2,500 km |
@@ -257,12 +277,30 @@ Top-3 is meaningless here (random guessing already gets ~50%). **Majority baseli
 1. **"% within 750 km" is a mean proxy for "correct country,"**, while this project is a literal label match, which is stricter, but means that comparisons with IM2GPS are approximations. PIGEON's 92% is the one directly comparable figure, since it is also a literal country match.
 2. **Training scale differs by orders of magnitude.** PlaNet trained on 91M images, and PIGEON's CLIP backbone was pretrained on hundreds of millions of image-text pairs. This project used ~86k images, classical models on hand-engineered features, and a consumer CPU.
 
+
+<img width="580" height="432" alt="outputvv" src="https://github.com/user-attachments/assets/c1f077b6-663f-405a-9892-c1317e9f58cc" />
+
+
+
+
 **Results**
 - **Country:** 34.6% sits between the 2008 IM2GPS (23.0% on the 750 km proxy) and its 2015 revision (35.4%), on a stricter metric. It is well below PlaNet (53.6%) and TransLocator (58.9%), and far below PIGEON (92%).
 - **Continent:** 62.7% is close to ISNs (66.0%, a 2018 deep-learning system) and above both IM2GPS variants (47.0%, 51.9%). It is below PlaNet (71.3%) and TransLocator (80.1%). This is the project's strongest showing against deep-learning benchmarks.
 - **Distance:** the weakest showing. The best median error (3,613 km) is **1.6-3.3x worse** than PlaNet's 1,100-2,300 km (a 2016 system) and **~82x worse** than PIGEON's 44 km. Every model's typical miss exceeds 2,500 km, the continent threshold that the papers above use as their most forgiving bucket.
 
+
+<img width="790" height="590" alt="output" src="https://github.com/user-attachments/assets/d3c72e0a-96a9-4eaf-bda9-caaadd72e413" />
+
+
+
+
 **Final thought:** The final model is in my opinion worse than these results might suggest. The Uniform distribution in the data made the model's job on accuracy a lot easier, since it gave small countries and territories the same weight as it did for giant countries, which allowed the model to get really good at recognizing natural and image-adherent patterns present in small countries and/or countries with very small Google Maps coverage and obvious camera quirks. In a truly representative dataset of the world's landmass, the model would do much much worse.
+
+
+
+<img width="577" height="459" alt="covv" src="https://github.com/user-attachments/assets/04cfea95-a4a7-4511-ad6d-2ec82ef513ae" />
+
+
 
 
 ## Tech Stack
